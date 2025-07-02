@@ -1,0 +1,1 @@
+The images showed in this folder are screenshots taken from Azure Portal.

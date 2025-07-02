@@ -1,0 +1,1 @@
+this folder shows the screenshots of the project and its resources.
