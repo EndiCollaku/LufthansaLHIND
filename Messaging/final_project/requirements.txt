@@ -1,0 +1,4 @@
+requests
+pika
+sseclient
+psycopg2-binary
