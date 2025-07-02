@@ -1,0 +1,57 @@
+name: $(TeamProject)_$(Build.DefinitionName)_$(SourceBranchName)_$(Date:yyyyMMdd)$(Rev:.r)
+
+parameters:
+  - name: students_name
+    type: string
+    default: endi
+
+  - name: terraform_service_connection
+    type: string
+    default: "bootcamp_scn"
+
+  - name: kubernetes_service_connection
+    displayName: kubernetes service connection
+    type: string
+    default: "kubernetes_scn"
+
+  - name: terraform_working_dir
+    type: string
+    default: $(System.DefaultWorkingDirectory)/Terraform/final_project
+  
+  - name: helm_working_dir
+    type: string
+    default: $(System.DefaultWorkingDirectory)/Kubernetes/final_project/inventory-app/
+
+pool:
+  name: 'bootcamp_agent'
+
+stages:
+  - template: Pipeline/verify.yml
+    parameters:
+      terraform_service_connection: ${{parameters.terraform_service_connection}}
+      kubernetes_service_connection: ${{parameters.kubernetes_service_connection}}
+      terraform_working_dir: ${{parameters.terraform_working_dir}}
+      helm_working_dir: ${{parameters.helm_working_dir}}
+  
+  - template: Pipeline/terraform-plan.yml
+    parameters:
+      terraform_service_connection: ${{parameters.terraform_service_connection}}
+      terraform_working_dir: ${{parameters.terraform_working_dir}}
+      students_name: ${{parameters.students_name}}
+  
+  - template: Pipeline/deploy.yml
+    parameters:
+      terraform_service_connection: ${{parameters.terraform_service_connection}}
+      terraform_working_dir: ${{parameters.terraform_working_dir}}
+      students_name: ${{parameters.students_name}}
+
+
+  - template: Pipeline/helm.yml
+    parameters:
+      kubernetes_service_connection: ${{parameters.kubernetes_service_connection}}
+  
+  - template: Pipeline/testing-stage.yml
+    parameters:
+      kubernetes_service_connection: ${{parameters.kubernetes_service_connection}}
+      helmReleaseName: inventory
+    

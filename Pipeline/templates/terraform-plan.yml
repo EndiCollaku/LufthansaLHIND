@@ -1,0 +1,42 @@
+parameters:
+  terraform_service_connection: ''
+  terraform_working_dir: ''
+  students_name: ''
+
+stages:
+- stage: TerraformPlan
+  displayName: Terraform Planning Stage
+  jobs:
+    - job: Plan
+      steps:
+        - checkout: self
+
+        # Initialize terraform
+        - task: AzureCLI@2
+          displayName: Terraform Init (Plan Stage)
+          inputs:
+            azureSubscription: ${{ parameters.terraform_service_connection }}
+            scriptType: bash
+            scriptLocation: inlineScript
+            workingDirectory: ${{ parameters.terraform_working_dir }}
+            inlineScript: |
+              terraform init -reconfigure -input=false -force-copy
+
+        # Create terraform execution plan and save it with student name prefix
+        - task: AzureCLI@2
+          displayName: Terraform Plan
+          inputs:
+            azureSubscription: ${{ parameters.terraform_service_connection }}
+            scriptType: bash
+            scriptLocation: inlineScript
+            workingDirectory: ${{ parameters.terraform_working_dir }}
+            inlineScript: |
+              mkdir -p plan
+              terraform plan -out="plan/${{ parameters.students_name }}_executionplan.tfplan"
+
+        # Publish terraform plan as build artifact for later stages
+        - task: PublishBuildArtifacts@1
+          displayName: Publish Terraform Plan Artifact
+          inputs:
+            PathtoPublish: '${{ parameters.terraform_working_dir }}/plan'
+            ArtifactName: ${{ parameters.students_name }}_executionplan

@@ -1,0 +1,52 @@
+parameters:
+  terraform_service_connection: ''
+  terraform_working_dir: ''
+  students_name: ''
+
+stages:
+- stage: TerraformDeploy
+  displayName: Terraform Apply Stage
+  dependsOn: TerraformPlan
+  jobs:
+    - deployment: ApplyTerraform
+      displayName: Terraform Apply Job
+      pool:
+        name: bootcamp_agent
+      environment: endi  
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - checkout: self
+
+            
+              - task: DownloadBuildArtifacts@0
+                displayName: Download Terraform Plan Artifact
+                inputs:
+                  buildType: current
+                  downloadType: single
+                  artifactName: ${{ parameters.students_name }}_executionplan
+                  downloadPath: ${{ parameters.terraform_working_dir }}
+
+            
+              - task: AzureCLI@2
+                displayName: Terraform Init (Apply Stage)
+                inputs:
+                  azureSubscription: ${{ parameters.terraform_service_connection }}
+                  scriptType: bash
+                  scriptLocation: inlineScript
+                  workingDirectory: ${{ parameters.terraform_working_dir }}
+                  inlineScript: |
+                    terraform init -reconfigure
+
+             
+              - task: AzureCLI@2
+                displayName: Terraform Apply
+                inputs:
+                  azureSubscription: ${{ parameters.terraform_service_connection }}
+                  scriptType: bash
+                  scriptLocation: inlineScript
+                  workingDirectory: ${{ parameters.terraform_working_dir }}
+                  inlineScript: |
+                    echo "terraform apply"
+                    #terraform apply -auto-approve "${{ parameters.students_name }}_executionplan/${{ parameters.students_name }}_executionplan.tfplan"

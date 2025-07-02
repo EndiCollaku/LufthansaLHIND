@@ -1,0 +1,54 @@
+parameters:
+  kubernetes_service_connection: ''
+  namespace: 'endi-collaku-ns'
+  helm_chart_path: 'Kubernetes/final_project/inventory-app'
+  app_name: 'inventory-app'
+
+stages:
+- stage: HelmDeploy
+  displayName: Helm Deploy stage
+  dependsOn: TerraformPlan
+  jobs:
+    - job: DeployHelm
+      displayName: Helm Install/Upgrade
+      pool:
+        name: bootcamp_agent
+      steps:
+        - checkout: self
+        
+        - task: kubectlInstaller@0
+          displayName: Install kubectl
+          inputs: 
+            kubectlVersion: 'latest'
+          
+        - task: Kubernetes@1
+          displayName: Login to Cluster
+          inputs: 
+            connectionType: 'Kubernetes Service Connection'
+            kubernetesServiceEndpoint: ${{parameters.kubernetes_service_connection}}
+            command: 'login'
+
+        - script: |
+            echo "Checking if namespace exist"
+            kubectl get namespace ${{parameters.namespace}} || kubectl create namespace ${{parameters.namespace}}
+          displayName: 'create ns if not exist'
+
+        - script: |
+            echo "Checking existing resources before deployment"
+            kubectl get all -n ${{parameters.namespace}} || echo "No resources"
+
+            echo "Starting Helm Deploy"
+            helm upgrade --install ${{parameters.app_name}} \
+              $(System.DefaultWorkingDirectory)/${{parameters.helm_chart_path}}\
+               -f $(System.DefaultWorkingDirectory)/${{parameters.helm_chart_path}}/values.yaml \
+               --namespace ${{parameters.namespace}} \
+               --timeout=600s \
+               --debug
+            
+            echo "Deployment Completed, checking pods"
+            kubectl get pods -n ${{parameters.namespace}}
+          
+          displayName: 'Helm Deploy'
+
+
+

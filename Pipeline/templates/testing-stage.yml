@@ -1,0 +1,38 @@
+parameters:
+  kubernetes_service_connection: ''
+  helmReleaseName: ''
+
+stages:
+- stage: Testing
+  displayName: Testing Helm Deploy
+  dependsOn: HelmDeploy
+
+  jobs: 
+    - job: TestHelmDeployment
+      displayName: Verify Helm Release & Pods
+      pool:
+        name: bootcamp_agent
+      steps:
+        - checkout: self
+      
+        - task: Kubernetes@1
+          displayName: Login to Kubernetes Cluster
+          inputs:
+            connectionType: 'Kubernetes Service Connection'
+            kubernetesServiceEndpoint: ${{parameters.kubernetes_service_connection}}
+            command: 'login'
+        
+        - script: |
+            echo "Checking Helm status ... "
+            helm status ${{parameters.helmReleaseName}}
+
+            echo "Waiting for Deployments to finish"
+            kubectl rollout status deployment backend -n app
+            kubectl rollout status deployment frontend -n app
+            kubectl rollout status deployment postgres -n app
+
+            echo "Showing pods"
+            kubectl get pods -o wide 
+
+            echo "Test Completed successfully"
+          displayName: Check Helm Release pods

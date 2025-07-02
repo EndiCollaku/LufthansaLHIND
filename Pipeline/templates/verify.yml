@@ -1,0 +1,58 @@
+parameters:
+
+  terraform_service_connection: ''
+  kubernetes_service_connection: ''
+  terraform_working_dir: ''
+  helm_working_dir: ''
+
+stages: 
+- stage: Verify
+  displayName: Verify Terraform and helm
+
+  jobs:
+    - job: VerifyTerraform
+      displayName: Terraform Verify
+      pool:
+        name: bootcamp_agent
+      steps:
+        - checkout: self
+
+        - task: AzureCLI@2
+          displayName: Terraform Init
+          inputs:
+            azureSubscription: ${{ parameters.terraform_service_connection }}
+            scriptType: bash
+            scriptLocation: inlineScript
+            workingDirectory: ${{ parameters.terraform_working_dir }}
+            inlineScript: |
+              terraform init
+
+        - task: AzureCLI@2
+          displayName: Terraform Validate
+          inputs:
+            azureSubscription: ${{ parameters.terraform_service_connection }}
+            scriptType: bash
+            scriptLocation: inlineScript
+            workingDirectory: ${{ parameters.terraform_working_dir}}
+            inlineScript: |
+              terraform validate
+
+        - task: AzureCLI@2
+          displayName: Terraform Format Check
+          inputs:
+            azureSubscription: ${{ parameters.terraform_service_connection }}
+            scriptType: bash
+            scriptLocation: inlineScript
+            workingDirectory: ${{ parameters.terraform_working_dir }}
+            inlineScript: |
+              terraform fmt -check -diff || true
+
+    - job: VerifyHelm
+      displayName: Verify Helm Chart
+      pool:
+        name: bootcamp_agent
+      steps:
+        - checkout: self
+        - script: |
+            helm lint ${{ parameters.helm_working_dir }}
+          displayName: Helm Lint
