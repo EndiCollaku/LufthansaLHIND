@@ -1,0 +1,252 @@
+# Default values for inventory-app.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+replicaCount: 1
+
+# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+image:
+  repository: nginx
+  # This sets the pull policy for images.
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+# This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+imagePullSecrets: []
+# This is to override the chart name.
+nameOverride: ""
+fullnameOverride: ""
+
+# This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# This is for setting Kubernetes Annotations to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+podAnnotations: {}
+# This is for setting Kubernetes Labels to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+resources: {}
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+volumes: []
+
+volumeMounts: []
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+
+# frontend:
+#   image:
+#     repository: nginx
+#   port: 80
+# backend:
+#   image:
+#     repository: backend
+#   port: 5000
+
+global:
+  namespace: inventory-app
+
+frontend:
+  replicaCount: 1
+  image:
+    repository: endi315/inventory-front
+    tag: v3 # or use your actual tag if different
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 101
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+backend:
+  replicaCount: 1
+  image:
+    repository: endi315/inventory-back
+    tag: v3 # or use your actual tag if different
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 5000
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+  config:
+    appName: "InventoryApp"
+    flaskEnv: "production"
+
+
+postgresql:
+  image:
+    repository: postgres
+    tag: "15-alpine"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 5432
+  storage:
+    size: 1Gi
+    storageClass: ""
+  database:
+    name: "inventory"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  securityContext:
+    runAsUser: 999
+    runAsGroup: 999
+    fsGroup: 999
+
+
+pgadmin:
+  replicaCount: 1
+  image:
+    repository: dpage/pgadmin4
+    tag: "8.6"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  storage:
+    size: 500Mi
+    storageClass: ""
+  resources:
+    limits:
+      cpu: 200m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+  securityContext:
+    runAsUser: 5050
+    runAsGroup: 5050
+    fsGroup: 5050
+  livenessProbe:
+    path: /misc/ping
+    port: http
+    initialDelaySeconds: 60
+    periodSeconds: 10
+  readinessProbe:
+    path: /misc/ping
+    port: http
+    initialDelaySeconds: 30
+    periodSeconds: 5
+
+  
+
+cronjob:
+  schedule: "0 2 * * *"  # Every night at 2 AM
+  image:
+    repository: curlimages/curl
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+networkPolicy:
+  enabled: true
+
+# RBAC
+rbac:
+  create: true

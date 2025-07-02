@@ -1,0 +1,95 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-cleanup
+  labels:
+    {{- include "inventory-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cronjob
+spec:
+  schedule: {{ .Values.cronjob.schedule | quote }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "inventory-app.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: cronjob
+        spec:
+          serviceAccountName: {{ include "inventory-app.fullname" . }}-cronjob
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: {{ .Values.cronjob.securityContext.runAsNonRoot }}
+            runAsUser: {{ .Values.cronjob.securityContext.runAsUser }}
+          containers:
+          - name: cleanup
+            image: "{{ .Values.cronjob.image.repository }}:{{ .Values.cronjob.image.tag }}"
+            imagePullPolicy: {{ .Values.cronjob.image.pullPolicy }}
+            command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Starting cleanup job at $(date)"
+              
+              # First, mark some products as discontinued (for testing)
+              echo "Marking random products as discontinued..."
+              curl -s -X POST http://{{ include "inventory-app.fullname" . }}-backend:5000/api/products \
+                -H "Content-Type: application/json" \
+                -d '{"name": "Test Discontinued Product", "quantity": 0}' || true
+              
+              # Then cleanup discontinued products
+              echo "Cleaning up discontinued products..."
+              RESPONSE=$(curl -s -X POST http://{{ include "inventory-app.fullname" . }}-backend:5000/api/products/cleanup)
+              echo "Cleanup result: $RESPONSE"
+              
+              echo "Cleanup job completed at $(date)"
+            resources:
+              {{- toYaml .Values.cronjob.resources | nindent 14 }}
+            securityContext:
+              readOnlyRootFilesystem: {{ .Values.cronjob.securityContext.readOnlyRootFilesystem }}
+              allowPrivilegeEscalation: {{ .Values.cronjob.securityContext.allowPrivilegeEscalation }}
+              capabilities:
+                {{- toYaml .Values.cronjob.securityContext.capabilities | nindent 16 }}
+            volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          volumes:
+          - name: tmp
+            emptyDir: {}
+---
+{{- if .Values.rbac.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-cronjob
+  labels:
+    {{- include "inventory-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cronjob
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-cronjob-role
+  labels:
+    {{- include "inventory-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cronjob
+rules:
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-cronjob-rolebinding
+  labels:
+    {{- include "inventory-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cronjob
+subjects:
+- kind: ServiceAccount
+  name: {{ include "inventory-app.fullname" . }}-cronjob
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "inventory-app.fullname" . }}-cronjob-role
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

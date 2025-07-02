@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Inventory Manager</title>
+</head>
+<body>
+  <h1>Inventory Manager</h1>
+  <form id="product-form">
+    <input type="text" id="name" placeholder="Product Name" required />
+    <input type="number" id="quantity" placeholder="Quantity" required min="1" />
+    <button type="submit">Add Product</button>
+  </form>
+  <ul id="product-list"></ul>
+
+  <script>
+    const API_URL = 'http://localhost:5000/api/products';
+
+    async function loadProducts() {
+      try {
+        const res = await fetch(API_URL);
+        if (!res.ok) throw new Error('Failed to fetch products');
+        const data = await res.json();
+        const list = document.getElementById('product-list');
+        list.innerHTML = '';
+
+        data.forEach(p => {
+          const li = document.createElement('li');
+          li.textContent = `${p.name} (${p.quantity})`;
+
+          const delBtn = document.createElement('button');
+          delBtn.textContent = 'Delete';
+          delBtn.style.marginLeft = '10px';
+          delBtn.onclick = async (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete "${p.name}"?`)) {
+              const delRes = await fetch(`${API_URL}/${p.id}`, { method: 'DELETE' });
+              if (delRes.ok) loadProducts();
+              else alert('Failed to delete product');
+            }
+          };
+
+          li.appendChild(delBtn);
+          list.appendChild(li);
+        });
+      } catch (err) {
+        console.error(err);
+        alert('Error loading products: ' + err.message);
+      }
+    }
+
+    document.getElementById('product-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('name').value.trim();
+      const quantity = parseInt(document.getElementById('quantity').value, 10);
+
+      if (!name || isNaN(quantity) || quantity < 1) {
+        alert('Please enter a valid name and quantity (1 or more).');
+        return;
+      }
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, quantity }),
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          alert('Failed to add product: ' + text);
+          return;
+        }
+        document.getElementById('product-form').reset();
+        loadProducts();
+      } catch (err) {
+        console.error(err);
+        alert('Network error: ' + err.message);
+      }
+    };
+
+    loadProducts();
+  </script>
+</body>
+</html>

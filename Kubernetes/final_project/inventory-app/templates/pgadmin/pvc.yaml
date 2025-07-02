@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-pgadmin-pvc
+  labels:
+    {{- include "inventory-app.pgadmin.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.pgadmin.storage.storageClass }}
+  storageClassName: {{ .Values.pgadmin.storage.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.pgadmin.storage.size }}

@@ -1,0 +1,2 @@
+# PVC is handled by StatefulSet volumeClaimTemplates
+# This file is kept for reference but not used

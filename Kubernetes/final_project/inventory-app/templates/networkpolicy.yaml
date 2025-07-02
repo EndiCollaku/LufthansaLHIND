@@ -1,0 +1,147 @@
+{{- if .Values.networkPolicy.enabled }}
+# Default deny all ingress traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-default-deny
+  labels:
+    {{- include "inventory-app.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+---
+# Allow backend to access PostgreSQL
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-allow-backend-to-postgres
+  labels:
+    {{- include "inventory-app.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "inventory-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgresql
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "inventory-app.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: backend
+    ports:
+    - protocol: TCP
+      port: 5432
+---
+# Allow pgAdmin to access PostgreSQL
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-allow-pgadmin-to-postgres
+  labels:
+    {{- include "inventory-app.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "inventory-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgresql
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "inventory-app.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: pgadmin
+    ports:
+    - protocol: TCP
+      port: 5432
+---
+# Allow frontend to access backend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-allow-frontend-to-backend
+  labels:
+    {{- include "inventory-app.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "inventory-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "inventory-app.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: frontend
+    ports:
+    - protocol: TCP
+      port: 5000
+---
+# Allow cronjob to access backend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-allow-cronjob-to-backend
+  labels:
+    {{- include "inventory-app.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "inventory-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "inventory-app.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: cronjob
+    ports:
+    - protocol: TCP
+      port: 5000
+---
+# Allow ingress from outside to frontend (for port-forward access)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-allow-external-to-frontend
+  labels:
+    {{- include "inventory-app.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "inventory-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: frontend
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 80
+---
+# Allow ingress from outside to pgAdmin (for port-forward access)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-allow-external-to-pgadmin
+  labels:
+    {{- include "inventory-app.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "inventory-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: pgadmin
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 80
+{{- end }}

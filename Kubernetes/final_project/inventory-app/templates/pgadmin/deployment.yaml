@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-pgadmin
+  labels:
+    {{- include "inventory-app.pgadmin.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.pgadmin.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "inventory-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: pgadmin
+  template:
+    metadata:
+      labels:
+        {{- include "inventory-app.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: pgadmin
+    spec:
+      securityContext:
+        runAsUser: {{ .Values.pgadmin.securityContext.runAsUser }}
+        runAsGroup: {{ .Values.pgadmin.securityContext.runAsGroup }}
+        fsGroup: {{ .Values.pgadmin.securityContext.fsGroup }}
+      containers:
+        - name: pgadmin
+          image: "{{ .Values.pgadmin.image.repository }}:{{ .Values.pgadmin.image.tag }}"
+          imagePullPolicy: {{ .Values.pgadmin.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: PGADMIN_DEFAULT_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "inventory-app.fullname" . }}-pgadmin-secret
+                  key: pgadmin-email
+            - name: PGADMIN_DEFAULT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "inventory-app.fullname" . }}-pgadmin-secret
+                  key: pgadmin-password
+            - name: PGADMIN_CONFIG_SERVER_MODE
+              value: "False"
+            - name: PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED
+              value: "False"
+            - name: PGADMIN_LISTEN_ADDRESS
+              value: "0.0.0.0"
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.pgadmin.livenessProbe.path | quote }}
+              port: {{ .Values.pgadmin.livenessProbe.port }}
+            initialDelaySeconds: {{ .Values.pgadmin.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.pgadmin.livenessProbe.timeoutSeconds | default 3 }}
+            periodSeconds: {{ .Values.pgadmin.livenessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.pgadmin.livenessProbe.failureThreshold | default 3 }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.pgadmin.readinessProbe.path | quote }}
+              port: {{ .Values.pgadmin.readinessProbe.port }}
+            initialDelaySeconds: {{ .Values.pgadmin.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.pgadmin.readinessProbe.timeoutSeconds | default 3 }}
+            periodSeconds: {{ .Values.pgadmin.readinessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.pgadmin.readinessProbe.failureThreshold | default 3 }}
+          resources:
+            {{- toYaml .Values.pgadmin.resources | nindent 12 }}
+          volumeMounts:
+            - name: pgadmin-data
+              mountPath: /var/lib/pgadmin
+            - name: config
+              mountPath: /pgadmin4/servers.json
+              subPath: servers.json
+              readOnly: true
+      volumes:
+        - name: pgadmin-data
+          persistentVolumeClaim:
+            claimName: {{ include "inventory-app.fullname" . }}-pgadmin-pvc
+        - name: config
+          configMap:
+            name: {{ include "inventory-app.fullname" . }}-pgadmin-config

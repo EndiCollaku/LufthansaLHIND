@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: log-cleanup
+  namespace: mini-project
+spec:
+  schedule: "0 12 * * *" # Daily at 12:00 PM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: cleanup
+              image: busybox
+              command: ["/bin/sh", "-c"]
+              args:
+                - find /logs -type f -mtime +1 -delete
+              volumeMounts:
+                - name: log-volume
+                  mountPath: /logs
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "100m"
+                  memory: "128Mi"
+          restartPolicy: OnFailure
+          volumes:
+            - name: log-volume
+              persistentVolumeClaim:
+                claimName: logs-pvc

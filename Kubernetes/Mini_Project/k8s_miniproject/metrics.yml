@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: metrics
+  namespace: mini-project
+spec:
+  selector:
+    matchLabels:
+      app: metrics
+  serviceName: "metrics"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: metrics
+    spec:
+      containers:
+        - name: metrics
+          image: busybox
+          command: ["/bin/sh", "-c"]
+          args:
+            - while true; do echo "$(date) writing log" > /logs/log-$(date +%s).txt; sleep 300; done
+          volumeMounts:
+            - name: log-volume
+              mountPath: /logs
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+      volumes:
+        - name: log-volume
+          persistentVolumeClaim:
+            claimName: logs-pvc

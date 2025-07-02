@@ -1,0 +1,45 @@
+1. Get the application URL by running these commands:
+
+   Frontend:
+   kubectl port-forward svc/{{ include "inventory-app.fullname" . }}-frontend 8080:80
+   Then visit http://127.0.0.1:8080
+
+   Backend API:
+   kubectl port-forward svc/{{ include "inventory-app.fullname" . }}-backend 5000:5000
+   Then access API at http://127.0.0.1:5000/api/products
+
+   pgAdmin:
+   kubectl port-forward svc/{{ include "inventory-app.fullname" . }}-pgadmin 8081:80
+   Then visit http://127.0.0.1:8081
+   Login with: admin@inventory.local / pgadmin_password
+
+   PostgreSQL (for direct access):
+   kubectl port-forward svc/{{ include "inventory-app.fullname" . }}-postgresql 5432:5432
+   Connect with: host=localhost port=5432 user=inventory_user password=inventory_password dbname=inventory
+
+2. Check the status of your application:
+   kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+3. View logs:
+   kubectl logs -l app.kubernetes.io/instance={{ .Release.Name }} -f
+
+4. Test the CronJob manually:
+   kubectl create job --from=cronjob/{{ include "inventory-app.fullname" . }}-cleanup manual-cleanup-test
+
+5. Monitor the cleanup CronJob:
+   kubectl get cronjobs
+   kubectl get jobs
+   kubectl logs job/manual-cleanup-test
+
+6. Security Context Applied:
+   - All pods run as non-root users
+   - Read-only root filesystem enabled where possible
+   - All capabilities dropped
+   - Network policies restrict inter-pod communication
+
+7. RBAC configured:
+   - Backend can access secrets and configmaps
+   - CronJob has minimal permissions to access services
+   - Least privilege principle applied
+
+Enjoy your secure, production-ready Inventory Management Application!

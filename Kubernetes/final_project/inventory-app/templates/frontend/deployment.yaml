@@ -1,0 +1,211 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "inventory-app.fullname" . }}-frontend
+  labels:
+    {{- include "inventory-app.frontend.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.frontend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "inventory-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        {{- include "inventory-app.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: frontend
+    spec:
+      serviceAccountName: {{ include "inventory-app.fullname" . }}-frontend
+      securityContext:
+        runAsNonRoot: {{ .Values.frontend.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.frontend.securityContext.runAsUser }}
+        fsGroup: {{ .Values.frontend.securityContext.runAsUser }}
+      containers:
+      - name: frontend
+        image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+        imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        command: 
+        - /bin/sh
+        - -c
+        - |
+          mkdir -p /tmp/nginx
+          cat > /tmp/nginx/nginx.conf << 'EOF'
+          events {
+              worker_connections 1024;
+          }
+          http {
+              include       /etc/nginx/mime.types;
+              default_type  application/octet-stream;
+              sendfile        on;
+              keepalive_timeout  65;
+              server {
+                  listen       80;
+                  server_name  localhost;
+                  location / {
+                      root   /usr/share/nginx/html;
+                      index  index.html index.htm;
+                  }
+                  error_page   500 502 503 504  /50x.html;
+                  location = /50x.html {
+                      root   /usr/share/nginx/html;
+                  }
+              }
+          }
+          EOF
+          
+          cat > /usr/share/nginx/html/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Inventory Management</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; }
+                  .container { max-width: 800px; margin: 0 auto; }
+                  .form-group { margin: 15px 0; }
+                  input, button { padding: 10px; margin: 5px; }
+                  button { background: #007bff; color: white; border: none; cursor: pointer; }
+                  button:hover { background: #0056b3; }
+                  .product { border: 1px solid #ddd; padding: 10px; margin: 10px 0; }
+                  .delete-btn { background: #dc3545; }
+                  .delete-btn:hover { background: #c82333; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>Inventory Management System</h1>
+                  
+                  <div class="form-group">
+                      <h2>Add New Product</h2>
+                      <input type="text" id="productName" placeholder="Product Name" required>
+                      <input type="number" id="productQuantity" placeholder="Quantity" required>
+                      <button onclick="addProduct()">Add Product</button>
+                  </div>
+                  
+                  <div class="form-group">
+                      <h2>Products</h2>
+                      <button onclick="loadProducts()">Refresh</button>
+                      <div id="productsList"></div>
+                  </div>
+              </div>
+
+              <script>
+                  const API_BASE = '/api/products';
+                  
+                  async function loadProducts() {
+                      try {
+                          const response = await fetch(API_BASE);
+                          const products = await response.json();
+                          
+                          const productsList = document.getElementById('productsList');
+                          productsList.innerHTML = '';
+                          
+                          products.forEach(product => {
+                              const productDiv = document.createElement('div');
+                              productDiv.className = 'product';
+                              productDiv.innerHTML = `
+                                  <strong>${product.name}</strong> - Quantity: ${product.quantity}
+                                  <button class="delete-btn" onclick="deleteProduct(${product.id})">Delete</button>
+                              `;
+                              productsList.appendChild(productDiv);
+                          });
+                      } catch (error) {
+                          alert('Error loading products: ' + error.message);
+                      }
+                  }
+                  
+                  async function addProduct() {
+                      const name = document.getElementById('productName').value;
+                      const quantity = parseInt(document.getElementById('productQuantity').value);
+                      
+                      if (!name || !quantity) {
+                          alert('Please fill in all fields');
+                          return;
+                      }
+                      
+                      try {
+                          const response = await fetch(API_BASE, {
+                              method: 'POST',
+                              headers: {
+                                  'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify({ name, quantity })
+                          });
+                          
+                          if (response.ok) {
+                              document.getElementById('productName').value = '';
+                              document.getElementById('productQuantity').value = '';
+                              loadProducts();
+                          } else {
+                              alert('Error adding product');
+                          }
+                      } catch (error) {
+                          alert('Error adding product: ' + error.message);
+                      }
+                  }
+                  
+                  async function deleteProduct(id) {
+                      if (confirm('Are you sure you want to delete this product?')) {
+                          try {
+                              const response = await fetch(`${API_BASE}/${id}`, {
+                                  method: 'DELETE'
+                              });
+                              
+                              if (response.ok) {
+                                  loadProducts();
+                              } else {
+                                  alert('Error deleting product');
+                              }
+                          } catch (error) {
+                              alert('Error deleting product: ' + error.message);
+                          }
+                      }
+                  }
+                  
+                  // Load products on page load
+                  document.addEventListener('DOMContentLoaded', loadProducts);
+              </script>
+          </body>
+          </html>
+          EOF
+          
+          nginx -c /tmp/nginx/nginx.conf -g 'daemon off;'
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.frontend.resources | nindent 12 }}
+        securityContext:
+          readOnlyRootFilesystem: {{ .Values.frontend.securityContext.readOnlyRootFilesystem }}
+          allowPrivilegeEscalation: {{ .Values.frontend.securityContext.allowPrivilegeEscalation }}
+          capabilities:
+            {{- toYaml .Values.frontend.securityContext.capabilities | nindent 12 }}
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: var-cache
+          mountPath: /var/cache/nginx
+        - name: var-run
+          mountPath: /var/run
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: var-cache
+        emptyDir: {}
+      - name: var-run
+        emptyDir: {}
