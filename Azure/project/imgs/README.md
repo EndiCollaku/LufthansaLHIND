@@ -1,0 +1,1 @@
+The following screenshots document the step-by-step implementation of the project, covering network setup, VMSS deployment, load balancer configuration, security rules, and connectivity testing. Each image highlights key stages, ensuring all components—frontend, backend, and their integration—are correctly deployed and functional.
