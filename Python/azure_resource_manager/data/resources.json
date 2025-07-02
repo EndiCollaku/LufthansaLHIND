@@ -1,0 +1,27 @@
+[
+    {
+        "type": "VirtualMachine",
+        "name": "virtual",
+        "location": "east-us",
+        "tier": "Tier"
+    },
+    {
+        "type": "StorageAccount",
+        "name": "storage",
+        "location": "east-us",
+        "tier": "Tier"
+    },
+    {
+        "type": "ResourceGroup",
+        "name": "Group1",
+        "location": "east-us",
+        "resources": [
+            {
+                "type": "VirtualMachine",
+                "name": "virtual",
+                "location": "east-us",
+                "tier": "Tier"
+            }
+        ]
+    }
+]

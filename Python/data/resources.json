@@ -1,0 +1,21 @@
+[
+    {
+        "type": "VirtualMachine",
+        "name": "vm",
+        "location": "east-us",
+        "tier": "stand"
+    },
+    {
+        "type": "ResourceGroup",
+        "name": "group",
+        "location": "east-us",
+        "resources": [
+            {
+                "type": "VirtualMachine",
+                "name": "vm",
+                "location": "east-us",
+                "tier": "stand"
+            }
+        ]
+    }
+]
